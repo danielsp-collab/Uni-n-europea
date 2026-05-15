@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EuroQuiz: El Desafío del Continente</title>
+    <style>
+        /* --- VARIABLES Y ESTILOS BASE --- */
+        :root {
+            --eu-blue-dark: #00143a;
+            --eu-blue-bright: #003399;
+            --eu-gold: #FFCC00;
+            --white: #ffffff;
+            --correct-green: #2ecc71;
+            --wrong-red: #e74c3c;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background: radial-gradient(circle at center, var(--eu-blue-bright), var(--eu-blue-dark));
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--white);
+            overflow-x: hidden;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL --- */
+        #game-container {
+            width: 95%;
+            max-width: 800px;
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border: 2px solid var(--eu-gold);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- TIPOGRAFÍA Y BOTONES --- */
+        h1 { color: var(--eu-gold); text-align: center; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .btn {
+            background: var(--eu-gold);
+            color: var(--eu-blue-dark);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--eu-gold); }
+
+        .btn-option {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            text-align: left;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        .btn-option:hover { background: var(--eu-blue-bright); border-color: var(--eu-gold); }
+
+        /* --- PANTALLAS --- */
+        .screen { display: none; animation: fadeIn 0.5s ease; }
+        .screen.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- INTERFAZ DE JUEGO (HUD) --- */
+        .hud {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--eu-gold);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* --- FEEDBACK --- */
+        #feedback-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 18px;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* --- CONFIGURACIÓN INICIO --- */
+        .form-group { margin-bottom: 20px; }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            margin-top: 5px;
+            font-size: 1rem;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .diff-btn {
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--eu-gold);
+            background: transparent;
+            color: white;
+            cursor: pointer;
+        }
+
+        .diff-btn.selected { background: var(--eu-gold); color: var(--eu-blue-dark); }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="start-screen" class="screen active">
+            <h1>EuroQuiz</h1>
+            <p style="text-align:center; margin-bottom: 20px;">¿Cuánto sabes sobre el Viejo Continente?</p>
+            
+            <div class="form-group">
+                <label>Nombre del Jugador:</label>
+                <input type="text" id="player-name" placeholder="Ej: Marco Polo" maxlength="15">
+            </div>
+
+            <div class="form-group">
+                <label>Selecciona Dificultad:</label>
+                <div class="difficulty-selector">
+                    <button class="diff-btn selected" onclick="setDifficulty('facil', this)">Fácil</button>
+                    <button class="diff-btn" onclick="setDifficulty('medio', this)">Medio</button>
+                    <button class="diff-btn" onclick="setDifficulty('dificil', this)">Difícil</button>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 20px;">
+                <p><strong>Instrucciones:</strong></p>
+                <ul>
+                    <li>Tienes 5 vidas ❤️.</li>
+                    <li>Cada error resta una vida.</li>
+                    <li>¡Responde correctamente para sumar puntos y llegar al final!</li>
+                </ul>
+            </div>
+
+            <button class="btn" style="width: 100%;" onclick="initGame()">Comenzar Juego</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="hud">
+                <div>👤 <span id="hud-name"></span></div>
+                <div>⭐ Puntos: <span id="hud-score">0</span></div>
+                <div>❤️ Vidas: <span id="hud-lives">❤️❤️❤️❤️❤️</span></div>
+                <div>📊 Nivel: <span id="hud-diff" style="text-transform: capitalize;"></span></div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div id="progress-fill"></div>
+            </div>
+            <p style="font-size: 0.8rem; text-align: right; margin-bottom: 10px;">Preguntas: <span id="hud-remaining">0/0</span></p>
+
+            <h2 id="question-text" style="margin-bottom: 20px; min-height: 60px;">Pregunta aquí</h2>
+            
+            <div id="options-container">
+                </div>
+        </div>
+
+        <div id="feedback-overlay">
+            <h1 id="feedback-title">¡Correcto!</h1>
+            <p id="feedback-message" style="margin: 20px 0; font-size: 1.2rem;"></p>
+            <button class="btn" onclick="nextQuestion()">Continuar</button>
+        </div>
+
+        <div id="end-screen" class="screen" style="text-align: center;">
+            <h1 id="end-title">FIN DEL JUEGO</h1>
+            <p id="end-message" style="margin: 20px 0;"></p>
+            <div style="font-size: 3rem; color: var(--eu-gold); margin-bottom: 20px;">
+                <span id="end-score">0</span> pts
+            </div>
+            <button class="btn" onclick="location.reload()">Reiniciar Reto</button>
+        </div>
+    </div>
+
+    <audio id="snd-correct" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQYAAACAgICAgICAgICA"></audio>
+
+    <script>
+        /* --- BASE DE DATOS DE PREGUNTAS --- */
+        const questionsDB = {
+            facil: [
+                { q: "¿En qué ciudad está la Torre Eiffel?", a: ["Londres", "París", "Berlín", "Roma"], c: 1 },
+                { q: "¿Cuál es la moneda común de la mayoría de países de la UE?", a: ["Libra", "Dólar", "Euro", "Franco"], c: 2 },
+                { q: "¿Qué país tiene forma de bota?", a: ["España", "Grecia", "Italia", "Portugal"], c: 2 },
+                { q: "¿En qué país se originaron los Juegos Olímpicos?", a: ["Italia", "Grecia", "Francia", "Alemania"], c: 1 },
+                { q: "¿Cuál es la capital de España?", a: ["Barcelona", "Valencia", "Sevilla", "Madrid"], c: 3 },
+                { q: "¿Qué colores tiene la bandera de Francia?", a: ["Rojo, Amarillo y Verde", "Azul, Blanco y Rojo", "Negro, Rojo y Oro", "Azul y Amarillo"], c: 1 },
+                { q: "¿Qué río pasa por Londres?", a: ["Sena", "Danubio", "Támesis", "Tíber"], c: 2 },
+                { q: "¿Cómo se llama el famoso monstruo de Escocia?", a: ["Bigfoot", "Nessie", "Yeti", "Kraken"], c: 1 },
+                { q: "¿Qué país es famoso por sus tulipanes y molinos?", a: ["Bélgica", "Dinamarca", "Países Bajos", "Suecia"], c: 2 },
+                { q: "¿Cuál es el país más grande de Europa por territorio?", a: ["Francia", "Ucrania", "Rusia", "Alemania"], c: 2 }
+            ],
+            medio: [
+                { q: "¿Qué ciudad es la sede principal de la Comisión Europea?", a: ["Luxemburgo", "Estrasburgo", "Bruselas", "Ginebra"], c: 2 },
+                { q: "¿En qué año cayó el Muro de Berlín?", a: ["1985", "1989", "1991", "1993"], c: 1 },
+                { q: "¿Cuál es el río más largo de Europa?", a: ["Danubio", "Volga", "Rin", "Ebro"], c: 1 },
+                { q: "¿Quién pintó la Capilla Sixtina?", a: ["Leonardo da Vinci", "Rafael", "Miguel Ángel", "Donatello"], c: 2 },
+                { q: "¿Qué país ganó la primera Eurocopa de fútbol (1960)?", a: ["España", "Francia", "Unión Soviética", "Italia"], c: 2 },
+                { q: "¿En qué país se encuentra el Castillo de Neuschwanstein?", a: ["Austria", "Alemania", "Suiza", "República Checa"], c: 1 },
+                { q: "¿Cuál es el nombre del estrecho que separa Europa de África?", a: ["Bósforo", "Gibraltar", "Sicilia", "Dardanelos"], c: 1 },
+                { q: "¿De qué país es típico el plato 'Moussaka'?", a: ["Turquía", "Bulgaria", "Grecia", "Chipre"], c: 2 },
+                { q: "¿Qué autor escribió 'Hamlet'?", a: ["Miguel de Cervantes", "William Shakespeare", "Victor Hugo", "Dante Alighieri"], c: 1 },
+                { q: "¿Cuál es la capital de Polonia?", a: ["Cracovia", "Varsovia", "Gdansk", "Breslavia"], c: 1 }
+            ],
+            dificil: [
+                { q: "¿Cuál es el pico más alto de Europa (en la cordillera del Cáucaso)?", a: ["Mont Blanc", "Elbrus", "Matterhorn", "Mulhacén"], c: 1 },
+                { q: "¿Qué tratado dio origen formal a la Unión Europea en 1992?", a: ["Tratado de Roma", "Tratado de Lisboa", "Tratado de Maastricht", "Tratado de Niza"], c: 2 },
+                { q: "¿En qué ciudad se encuentra el museo 'Mauritshuis'?", a: ["Ámsterdam", "La Haya", "Róterdam", "Utrecht"], c: 1 },
+                { q: "¿Qué país europeo tiene más islas (más de 200,000)?", a: ["Grecia", "Noruega", "Suecia", "Finlandia"], c: 2 },
+                { q: "¿Qué físico danés formuló el modelo atómico y recibió el Nobel en 1922?", a: ["Niels Bohr", "Max Planck", "Werner Heisenberg", "Erwin Schrödinger"], c: 0 },
+                { q: "¿Cómo se llama el parlamento de Islandia, considerado el más antiguo del mundo?", a: ["Storting", "Riksdag", "Althing", "Eduskunta"], c: 2 },
+                { q: "¿En qué batalla fue derrotado Napoleón definitivamente en 1815?", a: ["Austerlitz", "Waterloo", "Leipzig", "Trafalgar"], c: 1 },
+                { q: "¿Qué filósofo escribió 'Así habló Zaratustra'?", a: ["Immanuel Kant", "Friedrich Nietzsche", "Arthur Schopenhauer", "Karl Marx"], c: 1 },
+                { q: "¿Cuál es la capital de Estonia?", a: ["Riga", "Vilna", "Tallin", "Helsinki"], c: 2 },
+                { q: "¿Qué país europeo es el principal productor mundial de aceite de oliva?", a: ["Italia", "Grecia", "España", "Portugal"], c: 2 }
+            ]
+        };
+
+        /* --- LÓGICA DEL JUEGO --- */
+        let state = {
+            name: "",
+            difficulty: "facil",
+            questions: [],
+            currentIndex: 0,
+            score: 0,
+            lives: 5
+        };
+
+        function setDifficulty(lvl, btn) {
+            state.difficulty = lvl;
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        }
+
+        function initGame() {
+            state.name = document.getElementById('player-name').value || "Explorador";
+            state.lives = 5;
+            state.score = 0;
+            state.currentIndex = 0;
+            
+            // Mezclar preguntas de la dificultad elegida
+            let pool = [...questionsDB[state.difficulty]];
+            state.questions = pool.sort(() => Math.random() - 0.5);
+
+            // UI
+            document.getElementById('hud-name').innerText = state.name;
+            document.getElementById('hud-diff').innerText = state.difficulty;
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (state.lives <= 0) return;
+
+            const q = state.questions[state.currentIndex];
+            document.getElementById('question-text').innerText = q.q;
+            document.getElementById('hud-score').innerText = state.score;
+            document.getElementById('hud-remaining').innerText = `${state.currentIndex + 1}/${state.questions.length}`;
+            
+            // Vidas
+            document.getElementById('hud-lives').innerText = "❤️".repeat(state.lives);
+            
+            // Progreso
+            const progress = (state.currentIndex / state.questions.length) * 100;
+            document.getElementById('progress-fill').style.width = `${progress}%`;
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = "";
+            
+            q.a.forEach((opt, idx) => {
+                const b = document.createElement('button');
+                b.className = "btn btn-option";
+                b.innerText = opt;
+                b.onclick = () => checkAnswer(idx);
+                container.appendChild(b);
+            });
+        }
+
+        function checkAnswer(idx) {
+            const q = state.questions[state.currentIndex];
+            const overlay = document.getElementById('feedback-overlay');
+            const title = document.getElementById('feedback-title');
+            const msg = document.getElementById('feedback-message');
+
+            overlay.style.display = "flex";
+
+            if (idx === q.c) {
+                title.innerText = "¡CORRECTO!";
+                overlay.style.backgroundColor = "rgba(46, 204, 113, 0.95)";
+                msg.innerText = "¡Sigue así, vas por buen camino!";
+                state.score += (state.difficulty === 'facil' ? 100 : state.difficulty === 'medio' ? 200 : 300);
+            } else {
+                title.innerText = "INCORRECTO";
+                overlay.style.backgroundColor = "rgba(231, 76, 60, 0.95)";
+                msg.innerText = `La respuesta correcta era: ${q.a[q.c]}`;
+                state.lives--;
+            }
+        }
+
+        function nextQuestion() {
+            document.getElementById('feedback-overlay').style.display = "none";
+            state.currentIndex++;
+
+            if (state.lives <= 0) {
+                showEndScreen(false);
+            } else if (state.currentIndex >= state.questions.length) {
+                showEndScreen(true);
+            } else {
+                renderQuestion();
+            }
+        }
+
+        function showEndScreen(win) {
+            document.getElementById('game-screen').classList.remove('active');
+            const end = document.getElementById('end-screen');
+            end.classList.add('active');
+
+            const title = document.getElementById('end-title');
+            const msg = document.getElementById('end-message');
+            
+            if (win) {
+                title.innerText = "🏆 ¡VICTORIA ÉPICA!";
+                title.style.color = "var(--eu-gold)";
+                msg.innerText = `¡Felicidades, ${state.name}! Has superado el reto en dificultad ${state.difficulty}. Europa ya no tiene secretos para ti.`;
+            } else {
+                title.innerText = "GAME OVER";
+                title.style.color = "var(--wrong-red)";
+                msg.innerText = `Lo sentimos, ${state.name}. Te has quedado sin vidas. ¡Aprende de tus errores y vuelve a intentarlo!`;
+            }
+            
+            document.getElementById('end-score').innerText = state.score;
+        }
+    </script>
+</body>
+</html>
